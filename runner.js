@@ -296,9 +296,10 @@ async function processTargetOnce(target) {
     const message = pickMessage(target);
     const submitResult = await fillAndSubmit(page, target, message);
     if (!submitResult.ok) {
-      // Structured-intake form → try mailto: fallback before giving up
+      // Structured-intake form → email_only fallback chain:
+      // 1) mailto: on current page → 2) target.discovered_email pre-configured → 3) hard fail
       if (submitResult.fallback === "email_only") {
-        const email = await findMailtoOnPage(page);
+        const email = (await findMailtoOnPage(page)) || target.discovered_email || null;
         if (email) {
           return { ok: false, reason: submitResult.reason, fallback: "email_only", email, discoveredVia, skipRetry: true };
         }
