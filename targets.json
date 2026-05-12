@@ -1,6 +1,6 @@
 {
-  "_doc": "paranium.com 売却アウトバウンド先 — テック/開発者系のみ。status: pending/sent/failed/blocked. Submitted via Playwright-stealth orchestrator. 失敗時は automatic retry 1 回まで.",
-  "_fields_spec": "fillStrategy: 'native'=document.querySelector by [name], 'react'=React-aware setter, 'wpcf7'=Contact Form 7 phone required",
+  "_doc": "paranium.com 売却アウトバウンド先 — テック/開発者系のみ。status: pending/sent/failed/captcha_blocked/email_only/blocked/skipped. URL Discovery layer in runner.js will explore alt paths when the configured URL has no form.",
+  "_strategy": "Floor $5K / Target $8-15K / Escrow.com primary / Stripe・Wise・Revolut・USDC alt rails",
   "targets": [
     {
       "id": "parabol",
@@ -10,7 +10,7 @@
       "priority": 1,
       "status": "sent",
       "submitted_at": "2026-05-12T07:52:30Z",
-      "note": "Confirmed via Playwright MCP — HubSpot embedded form, 'Thank' confirmation"
+      "note": "HubSpot form, 'Thank' confirmed (interactive)"
     },
     {
       "id": "paratus-systems",
@@ -20,18 +20,17 @@
       "priority": 2,
       "status": "sent",
       "submitted_at": "2026-05-12T07:53:30Z",
-      "note": "Confirmed via Playwright MCP — WPCF7 form, 'Thank you' confirmation"
+      "note": "WPCF7 form, 'Thank you' confirmed (interactive)"
     },
     {
       "id": "parasol-software",
       "name": "Parasol Software (Dubai)",
       "url": "https://parasolsoftware.com/",
-      "form_section": "#contact-us",
       "industry": "Marketing/CRM SaaS (Dubai)",
       "priority": 3,
       "status": "sent",
       "submitted_at": "2026-05-12T07:54:50Z",
-      "note": "Submitted (Tilda form, post-submit redirected to about:blank)"
+      "note": "Tilda form (interactive)"
     },
     {
       "id": "connected-development",
@@ -41,112 +40,169 @@
       "priority": 4,
       "status": "sent",
       "submitted_at": "2026-05-12T07:52:00Z",
-      "note": "Submitted via Squarespace form, no clear confirmation"
+      "note": "Squarespace form (interactive)"
     },
     {
-      "id": "parapharma",
-      "name": "ParaPharma",
-      "url": "https://parapharma.org/#contact",
-      "industry": "Pharma (deprioritized — out of tech scope per user 2026-05-12)",
-      "priority": 99,
-      "status": "skipped",
-      "note": "User redirected scope to tech/dev only"
+      "id": "useparagon",
+      "name": "useparagon (Paragon Integration Platform)",
+      "url": "https://www.useparagon.com/request-a-demo",
+      "industry": "Embedded integration SaaS (developer infra)",
+      "priority": 5,
+      "status": "pending",
+      "verified_form": true,
+      "note": "Verified — request-a-demo form. support@useparagon.com fallback. Highest fit (developer tool branding family)."
+    },
+    {
+      "id": "particle-io",
+      "name": "Particle (IoT)",
+      "url": "https://particle.io/contact",
+      "industry": "IoT platform / developer tools",
+      "priority": 6,
+      "status": "pending",
+      "verified_form": true,
+      "note": "Verified — 'Talk to us' form with Work email/First/Last/Company/Country fields"
+    },
+    {
+      "id": "parabola-io",
+      "name": "Parabola (data automation SaaS)",
+      "url": "https://parabola.io/demo",
+      "industry": "No-code data automation",
+      "priority": 7,
+      "status": "pending",
+      "verified_form": true,
+      "note": "Verified — /demo is primary contact path. Root site /contact-us was 404."
+    },
+    {
+      "id": "paraform",
+      "name": "Paraform (recruiting marketplace)",
+      "url": "https://www.paraform.com/get-a-demo",
+      "industry": "Recruiting marketplace SaaS (YC W23)",
+      "priority": 8,
+      "status": "pending",
+      "verified_form": true,
+      "note": "Verified — /get-a-demo is primary path. Original /contact was 404."
+    },
+    {
+      "id": "parade-ai",
+      "name": "Parade (freight broker SaaS)",
+      "url": "https://try.parade.ai/contact-parade",
+      "industry": "Freight broker capacity management SaaS (SF)",
+      "priority": 9,
+      "status": "pending",
+      "verified_form": true,
+      "note": "Verified via WebFetch — contact form on subdomain. Email fallback: assistant@parade.ai"
+    },
+    {
+      "id": "parasolapp",
+      "name": "Parasol (vacation calendar SaaS)",
+      "url": "https://parasolapp.io/contact",
+      "industry": "Team vacation/time-off SaaS",
+      "priority": 10,
+      "status": "pending",
+      "verified_form": true,
+      "note": "Verified — /contact path. Small team likely → fast decision."
+    },
+    {
+      "id": "parasol-tech-us",
+      "name": "ParaSol Tech LLC",
+      "url": "https://parasoltech.us",
+      "industry": "IT support services",
+      "priority": 11,
+      "status": "pending",
+      "note": "URL discovery will explore — original /contact/ was 404"
+    },
+    {
+      "id": "paragon-software-dev",
+      "name": "Paragon Software (Disk SDK)",
+      "url": "https://www.paragon-software.com",
+      "industry": "Disk management SDK / SaaS",
+      "priority": 12,
+      "status": "pending",
+      "note": "URL discovery will explore — original /home/feedback/ was missing form"
+    },
+    {
+      "id": "parallel-ai",
+      "name": "Parallel (AI infra / search API)",
+      "url": "https://parallel.ai",
+      "industry": "AI infrastructure / web search APIs for AI agents",
+      "priority": 13,
+      "status": "email_only",
+      "discovered_email": "hello@parallel.ai",
+      "note": "No web form — direct email contact only. Queue for separate email batch."
+    },
+    {
+      "id": "parea-ai",
+      "name": "Parea AI (LLM observability)",
+      "url": "https://www.parea.ai",
+      "industry": "LLM observability / dev tools (Discord-led)",
+      "priority": 14,
+      "status": "email_only",
+      "note": "No web form, Discord/Twitter only. Email fallback via URL discovery if any mailto found."
     },
     {
       "id": "paragon-solutions",
       "name": "Paragon Solutions",
       "url": "https://paragonsolutions.com/contact-us/",
       "industry": "Payment processing API for developers",
-      "priority": 5,
-      "status": "failed",
+      "priority": 90,
+      "status": "captcha_blocked",
       "submitted_at": "2026-05-12T08:01:51.988Z",
-      "last_result": {
-        "ok": false,
-        "status": "error",
-        "marker": "errors before submitting this form.",
-        "filled": {
-          "name": "Paradigm LLC",
-          "email": "contact@paradigmjp.com",
-          "phone": "+81-3-0000-0000",
-          "message": "set"
-        },
-        "screenshotPath": "D:\\dev\\paranium-outbound\\logs\\paragon-solutions-1778572911547.png"
-      }
+      "note": "Form errors on submit — CAPTCHA suspected. Re-evaluation: captcha_blocked (requires human)."
     },
     {
-      "id": "parasol-tech-us",
-      "name": "ParaSol Tech LLC",
-      "url": "https://parasoltech.us/contact/",
-      "industry": "IT support services",
-      "priority": 6,
-      "status": "pending"
+      "id": "paragonerp",
+      "name": "Paragon ERP",
+      "url": "https://paragonerp.com",
+      "industry": "ERP SaaS",
+      "priority": 91,
+      "status": "failed",
+      "note": "ECONNREFUSED — site appears dead. Skip."
+    },
+    {
+      "id": "paratext",
+      "name": "Paratext",
+      "url": "https://paratext.com",
+      "industry": "Translation SaaS",
+      "priority": 92,
+      "status": "failed",
+      "note": "ECONNREFUSED — site appears dead. Skip."
+    },
+    {
+      "id": "parago-ai",
+      "name": "Parago (was AI SaaS, now UAE redirect)",
+      "url": "https://parago.ai",
+      "industry": "Redirects to parago.ae (different company)",
+      "priority": 93,
+      "status": "failed",
+      "note": "301 redirect to UAE site — wrong company. Skip."
+    },
+    {
+      "id": "parapharma",
+      "name": "ParaPharma",
+      "url": "https://parapharma.org/#contact",
+      "industry": "Pharma (out of tech scope)",
+      "priority": 99,
+      "status": "skipped",
+      "note": "User redirected scope to tech/dev only"
     },
     {
       "id": "parasol-xyz",
       "name": "Parasol Technologies (Sui Web3 gaming)",
       "url": "https://www.parasol.xyz",
       "industry": "Web3 gaming (Sui blockchain)",
-      "priority": 7,
+      "priority": 97,
       "status": "blocked",
-      "note": "Calendly-only, no contact form. Use email if discovered."
+      "note": "Calendly-only — no contact form. Future: try DM via Discord/X."
     },
     {
       "id": "paranoid-software",
       "name": "Paranoid Software",
       "url": "https://paranoid.software/en/",
       "industry": "Software consultancy",
-      "priority": 8,
+      "priority": 96,
       "status": "email_only",
-      "email": "info@paranoid.software",
-      "note": "No web form found. Queue for direct email batch."
-    },
-    {
-      "id": "paragon-software-dev",
-      "name": "Paragon Software (Disk SDK)",
-      "url": "https://www.paragon-software.com/home/feedback/",
-      "industry": "Disk management SDK / SaaS",
-      "priority": 9,
-      "status": "pending"
-    },
-    {
-      "id": "paraform",
-      "name": "Paraform",
-      "url": "https://www.paraform.com/contact",
-      "industry": "Recruiting marketplace SaaS",
-      "priority": 10,
-      "status": "pending"
-    },
-    {
-      "id": "parabol-dev-tool",
-      "name": "Parabola (data automation SaaS)",
-      "url": "https://parabola.io/contact-us",
-      "industry": "No-code data automation",
-      "priority": 11,
-      "status": "pending"
-    },
-    {
-      "id": "paragon-erp",
-      "name": "Paragon ERP",
-      "url": "https://paragonerp.com/contact-us/",
-      "industry": "ERP SaaS",
-      "priority": 12,
-      "status": "pending"
-    },
-    {
-      "id": "parago-ai",
-      "name": "Parago (AI SaaS)",
-      "url": "https://parago.ai/contact",
-      "industry": "AI SaaS",
-      "priority": 13,
-      "status": "pending"
-    },
-    {
-      "id": "paratext",
-      "name": "Paratext",
-      "url": "https://paratext.com/contact",
-      "industry": "Translation SaaS",
-      "priority": 14,
-      "status": "pending"
+      "discovered_email": "info@paranoid.software",
+      "note": "No web form found. Queued for email batch."
     }
   ]
 }

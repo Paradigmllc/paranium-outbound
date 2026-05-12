@@ -141,6 +141,91 @@ async function waitForConfirmation(page) {
   );
 }
 
+async function pageHasContactForm(page) {
+  return await page.evaluate(() => {
+    const forms = [...document.querySelectorAll("form")];
+    return forms.some((f) => f.querySelector('input[type="email"], input[name*="email" i]'));
+  });
+}
+
+async function findMailtoOnPage(page) {
+  return await page.evaluate(() => {
+    const links = [...document.querySelectorAll('a[href^="mailto:"]')].map((a) =>
+      a.href.replace(/^mailto:/i, "").split("?")[0].toLowerCase()
+    );
+    // Prefer non-generic addresses (avoid info@example.com if more specific exists)
+    const ranked = links.sort((a, b) => {
+      const score = (e) => (/^(info|hello|contact|support|sales|hi)@/i.test(e) ? 1 : 0);
+      return score(a) - score(b);
+    });
+    return ranked[0] || null;
+  });
+}
+
+const ALT_CONTACT_PATHS = [
+  "/contact",
+  "/contact-us",
+  "/contact-us/",
+  "/contacts",
+  "/get-in-touch",
+  "/talk-to-us",
+  "/talk-to-sales",
+  "/sales",
+  "/about/contact",
+  "/company/contact",
+  "/support",
+  "/demo",
+  "/request-demo",
+  "/get-demo",
+  "/#contact",
+];
+
+async function discoverContactPage(page, originalUrl) {
+  // Step 1: try the original URL — already loaded by caller
+  if (await pageHasContactForm(page)) {
+    return { ok: true, finalUrl: page.url(), via: "original" };
+  }
+
+  let origin;
+  try {
+    origin = new URL(originalUrl).origin;
+  } catch {
+    return { ok: false, reason: "invalid_base_url" };
+  }
+
+  // Step 2: try alt contact paths
+  for (const p of ALT_CONTACT_PATHS) {
+    const tryUrl = origin + p;
+    if (tryUrl === originalUrl) continue;
+    try {
+      const resp = await page.goto(tryUrl, { waitUntil: "domcontentloaded", timeout: 15_000 });
+      if (resp && resp.status() >= 400) continue;
+      await page.waitForTimeout(1200);
+      if (await pageHasContactForm(page)) {
+        return { ok: true, finalUrl: page.url(), via: `alt_path:${p}` };
+      }
+    } catch {
+      // continue
+    }
+  }
+
+  // Step 3: try origin root
+  try {
+    await page.goto(origin, { waitUntil: "domcontentloaded", timeout: 15_000 });
+    await page.waitForTimeout(1500);
+    if (await pageHasContactForm(page)) {
+      return { ok: true, finalUrl: page.url(), via: "origin_root" };
+    }
+    // Step 4: extract mailto: from root → degrade to email_only
+    const email = await findMailtoOnPage(page);
+    if (email) return { ok: false, fallback: "email_only", email, reason: "no_form_mailto_found" };
+  } catch {
+    // continue
+  }
+
+  return { ok: false, reason: "no_form_after_discovery" };
+}
+
 async function detectCaptcha(page) {
   return await page.evaluate(() => {
     const hasRecaptcha = !!document.querySelector('.g-recaptcha, iframe[src*="recaptcha"], [data-sitekey]');
@@ -177,17 +262,33 @@ async function processTargetOnce(target) {
     await page.goto(target.url, { waitUntil: "domcontentloaded", timeout: PAGE_TIMEOUT_MS });
     await page.waitForTimeout(2000); // let JS settle (HubSpot/wpcf7/Tilda load forms async)
 
+    // URL Discovery: if no contact form on configured URL, explore alt paths + mailto fallback
+    const discovery = await discoverContactPage(page, target.url);
+    if (!discovery.ok) {
+      if (discovery.fallback === "email_only") {
+        return {
+          ok: false,
+          reason: "downgraded_to_email_only",
+          fallback: "email_only",
+          email: discovery.email,
+          skipRetry: true,
+        };
+      }
+      return { ok: false, reason: discovery.reason || "no_form_after_discovery", skipRetry: true };
+    }
+    const discoveredVia = discovery.via;
+
     // CAPTCHA detection — skip + escalate (no retry value)
     const captcha = await detectCaptcha(page);
     if (captcha.hasCaptcha) {
-      return { ok: false, reason: "captcha_detected", captcha: captcha.types, skipRetry: true };
+      return { ok: false, reason: "captcha_detected", captcha: captcha.types, discoveredVia, skipRetry: true };
     }
 
     const message = pickMessage(target);
     const submitResult = await fillAndSubmit(page, target, message);
     if (!submitResult.ok) {
       // no_form_with_email / no_message_field / no_submit_btn → permanent, skip retry
-      return { ok: false, reason: submitResult.reason, filled: submitResult.filled, skipRetry: true };
+      return { ok: false, reason: submitResult.reason, filled: submitResult.filled, discoveredVia, skipRetry: true };
     }
 
     await page.waitForTimeout(2500);
@@ -208,6 +309,7 @@ async function processTargetOnce(target) {
       marker: confirmation.marker,
       filled: submitResult.filled,
       screenshotPath: shotPath,
+      discoveredVia,
     };
   } catch (e) {
     return { ok: false, reason: "exception", error: String(e?.message || e) };
@@ -282,6 +384,9 @@ async function run({ limit = 5, targetId = null } = {}) {
       else if (result.reason === "captcha_detected" || result.reason === "captcha_post_submit") {
         newStatus = "captcha_blocked";
         captchaCount++;
+      } else if (result.fallback === "email_only") {
+        newStatus = "email_only";
+        if (result.email) target.discovered_email = result.email;
       } else newStatus = "failed";
 
       target.status = newStatus;
