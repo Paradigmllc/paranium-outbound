@@ -1,0 +1,6 @@
+node_modules/
+logs/*.png
+logs/runs.jsonl
+.env
+*.log
+package-lock.json

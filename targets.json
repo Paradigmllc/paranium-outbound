@@ -1,0 +1,152 @@
+{
+  "_doc": "paranium.com 売却アウトバウンド先 — テック/開発者系のみ。status: pending/sent/failed/blocked. Submitted via Playwright-stealth orchestrator. 失敗時は automatic retry 1 回まで.",
+  "_fields_spec": "fillStrategy: 'native'=document.querySelector by [name], 'react'=React-aware setter, 'wpcf7'=Contact Form 7 phone required",
+  "targets": [
+    {
+      "id": "parabol",
+      "name": "Parabol",
+      "url": "https://www.parabol.co/contact/",
+      "industry": "Agile SaaS (Jira/GitHub/Slack)",
+      "priority": 1,
+      "status": "sent",
+      "submitted_at": "2026-05-12T07:52:30Z",
+      "note": "Confirmed via Playwright MCP — HubSpot embedded form, 'Thank' confirmation"
+    },
+    {
+      "id": "paratus-systems",
+      "name": "Paratus Systems",
+      "url": "https://paratussystems.com/contact-us/",
+      "industry": "IT consulting / SaaS (India)",
+      "priority": 2,
+      "status": "sent",
+      "submitted_at": "2026-05-12T07:53:30Z",
+      "note": "Confirmed via Playwright MCP — WPCF7 form, 'Thank you' confirmation"
+    },
+    {
+      "id": "parasol-software",
+      "name": "Parasol Software (Dubai)",
+      "url": "https://parasolsoftware.com/",
+      "form_section": "#contact-us",
+      "industry": "Marketing/CRM SaaS (Dubai)",
+      "priority": 3,
+      "status": "sent",
+      "submitted_at": "2026-05-12T07:54:50Z",
+      "note": "Submitted (Tilda form, post-submit redirected to about:blank)"
+    },
+    {
+      "id": "connected-development",
+      "name": "Connected Development (Paragon Innovations)",
+      "url": "https://www.connecteddev.com/contact",
+      "industry": "Electronics engineering (TX, part of TTI/Berkshire Hathaway)",
+      "priority": 4,
+      "status": "sent",
+      "submitted_at": "2026-05-12T07:52:00Z",
+      "note": "Submitted via Squarespace form, no clear confirmation"
+    },
+    {
+      "id": "parapharma",
+      "name": "ParaPharma",
+      "url": "https://parapharma.org/#contact",
+      "industry": "Pharma (deprioritized — out of tech scope per user 2026-05-12)",
+      "priority": 99,
+      "status": "skipped",
+      "note": "User redirected scope to tech/dev only"
+    },
+    {
+      "id": "paragon-solutions",
+      "name": "Paragon Solutions",
+      "url": "https://paragonsolutions.com/contact-us/",
+      "industry": "Payment processing API for developers",
+      "priority": 5,
+      "status": "failed",
+      "submitted_at": "2026-05-12T08:01:51.988Z",
+      "last_result": {
+        "ok": false,
+        "status": "error",
+        "marker": "errors before submitting this form.",
+        "filled": {
+          "name": "Paradigm LLC",
+          "email": "contact@paradigmjp.com",
+          "phone": "+81-3-0000-0000",
+          "message": "set"
+        },
+        "screenshotPath": "D:\\dev\\paranium-outbound\\logs\\paragon-solutions-1778572911547.png"
+      }
+    },
+    {
+      "id": "parasol-tech-us",
+      "name": "ParaSol Tech LLC",
+      "url": "https://parasoltech.us/contact/",
+      "industry": "IT support services",
+      "priority": 6,
+      "status": "pending"
+    },
+    {
+      "id": "parasol-xyz",
+      "name": "Parasol Technologies (Sui Web3 gaming)",
+      "url": "https://www.parasol.xyz",
+      "industry": "Web3 gaming (Sui blockchain)",
+      "priority": 7,
+      "status": "blocked",
+      "note": "Calendly-only, no contact form. Use email if discovered."
+    },
+    {
+      "id": "paranoid-software",
+      "name": "Paranoid Software",
+      "url": "https://paranoid.software/en/",
+      "industry": "Software consultancy",
+      "priority": 8,
+      "status": "email_only",
+      "email": "info@paranoid.software",
+      "note": "No web form found. Queue for direct email batch."
+    },
+    {
+      "id": "paragon-software-dev",
+      "name": "Paragon Software (Disk SDK)",
+      "url": "https://www.paragon-software.com/home/feedback/",
+      "industry": "Disk management SDK / SaaS",
+      "priority": 9,
+      "status": "pending"
+    },
+    {
+      "id": "paraform",
+      "name": "Paraform",
+      "url": "https://www.paraform.com/contact",
+      "industry": "Recruiting marketplace SaaS",
+      "priority": 10,
+      "status": "pending"
+    },
+    {
+      "id": "parabol-dev-tool",
+      "name": "Parabola (data automation SaaS)",
+      "url": "https://parabola.io/contact-us",
+      "industry": "No-code data automation",
+      "priority": 11,
+      "status": "pending"
+    },
+    {
+      "id": "paragon-erp",
+      "name": "Paragon ERP",
+      "url": "https://paragonerp.com/contact-us/",
+      "industry": "ERP SaaS",
+      "priority": 12,
+      "status": "pending"
+    },
+    {
+      "id": "parago-ai",
+      "name": "Parago (AI SaaS)",
+      "url": "https://parago.ai/contact",
+      "industry": "AI SaaS",
+      "priority": 13,
+      "status": "pending"
+    },
+    {
+      "id": "paratext",
+      "name": "Paratext",
+      "url": "https://paratext.com/contact",
+      "industry": "Translation SaaS",
+      "priority": 14,
+      "status": "pending"
+    }
+  ]
+}
