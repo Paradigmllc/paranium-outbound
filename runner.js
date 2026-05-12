@@ -14,7 +14,13 @@ chromium.use(stealth);
 
 const TARGETS_FILE = path.join(__dirname, "targets.json");
 const LOG_FILE = path.join(__dirname, "logs", "runs.jsonl");
-const RATE_LIMIT_MS = 10_000; // 10s between submissions to avoid IP-based throttling
+const RATE_LIMIT_MS = 8_000; // 8s between submissions to avoid IP-based throttling
+const PAGE_TIMEOUT_MS = 30_000;
+const OVERALL_TARGET_TIMEOUT_MS = 90_000; // hard cap per target — Playwright hang protection
+const MAX_RETRY = 1; // 1 auto-retry on transient failure (skip on CAPTCHA / permanent errors)
+
+// In-memory mutex — prevents /run double-fire from sending duplicates
+let RUN_LOCK = false;
 
 function loadTargets() {
   return JSON.parse(fs.readFileSync(TARGETS_FILE, "utf8"));
@@ -124,9 +130,9 @@ async function waitForConfirmation(page) {
         const check = () => {
           const body = (document.body?.innerText || "").toLowerCase();
           const success = /(thank|success|received|sent|submitted|message has been)/i.test(body);
-          const error = /(error|failed|invalid|please try again|captcha|spam)/i.test(body);
+          const error = /(error|failed|invalid|please try again)/i.test(body);
           if (success) return resolve({ status: "success", marker: body.match(/(thank[^\n]{0,80}|success[^\n]{0,80}|received[^\n]{0,80})/i)?.[0]?.slice(0, 150) });
-          if (error && Date.now() - start > 1500) return resolve({ status: "error", marker: body.match(/(error[^\n]{0,80}|invalid[^\n]{0,80}|captcha[^\n]{0,80})/i)?.[0]?.slice(0, 150) });
+          if (error && Date.now() - start > 1500) return resolve({ status: "error", marker: body.match(/(error[^\n]{0,80}|invalid[^\n]{0,80})/i)?.[0]?.slice(0, 150) });
           if (Date.now() - start > 6000) return resolve({ status: "unknown", marker: "no markers within 6s" });
           setTimeout(check, 400);
         };
@@ -135,43 +141,66 @@ async function waitForConfirmation(page) {
   );
 }
 
-async function processTarget(target) {
-  if (target.status !== "pending") return { skipped: true, reason: `status=${target.status}` };
-
-  const browser = await chromium.launch({
-    headless: true,
-    args: ["--no-sandbox", "--disable-blink-features=AutomationControlled"],
+async function detectCaptcha(page) {
+  return await page.evaluate(() => {
+    const hasRecaptcha = !!document.querySelector('.g-recaptcha, iframe[src*="recaptcha"], [data-sitekey]');
+    const hasHcaptcha = !!document.querySelector('.h-captcha, iframe[src*="hcaptcha"]');
+    const hasTurnstile = !!document.querySelector('.cf-turnstile, iframe[src*="challenges.cloudflare"]');
+    const hasFriendly = !!document.querySelector('.frc-captcha, [data-friendlycaptcha]');
+    const hasGeneric = /complete the captcha|verify you are human|i'm not a robot|prove you('re| are) human/i.test(document.body?.innerText || "");
+    const types = [];
+    if (hasRecaptcha) types.push("recaptcha");
+    if (hasHcaptcha) types.push("hcaptcha");
+    if (hasTurnstile) types.push("turnstile");
+    if (hasFriendly) types.push("friendlycaptcha");
+    if (hasGeneric && types.length === 0) types.push("generic");
+    return { hasCaptcha: types.length > 0, types };
   });
-  const ctx = await browser.newContext({
-    userAgent:
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36",
-    viewport: { width: 1366, height: 800 },
-    locale: "en-US",
-    timezoneId: "Asia/Tokyo",
-  });
-  const page = await ctx.newPage();
+}
 
+async function processTargetOnce(target) {
+  let browser, ctx;
   try {
-    await page.goto(target.url, { waitUntil: "domcontentloaded", timeout: 30_000 });
+    browser = await chromium.launch({
+      headless: true,
+      args: ["--no-sandbox", "--disable-blink-features=AutomationControlled"],
+    });
+    ctx = await browser.newContext({
+      userAgent:
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36",
+      viewport: { width: 1366, height: 800 },
+      locale: "en-US",
+      timezoneId: "Asia/Tokyo",
+    });
+    const page = await ctx.newPage();
+
+    await page.goto(target.url, { waitUntil: "domcontentloaded", timeout: PAGE_TIMEOUT_MS });
     await page.waitForTimeout(2000); // let JS settle (HubSpot/wpcf7/Tilda load forms async)
+
+    // CAPTCHA detection — skip + escalate (no retry value)
+    const captcha = await detectCaptcha(page);
+    if (captcha.hasCaptcha) {
+      return { ok: false, reason: "captcha_detected", captcha: captcha.types, skipRetry: true };
+    }
 
     const message = pickMessage(target);
     const submitResult = await fillAndSubmit(page, target, message);
     if (!submitResult.ok) {
-      await ctx.close();
-      await browser.close();
-      return { ok: false, reason: submitResult.reason, filled: submitResult.filled };
+      // no_form_with_email / no_message_field / no_submit_btn → permanent, skip retry
+      return { ok: false, reason: submitResult.reason, filled: submitResult.filled, skipRetry: true };
     }
 
     await page.waitForTimeout(2500);
     const confirmation = await waitForConfirmation(page);
 
-    // Screenshot for audit
+    // Re-check CAPTCHA after submit (some sites only render it post-submit)
+    const postCaptcha = await detectCaptcha(page);
+    if (postCaptcha.hasCaptcha && confirmation.status !== "success") {
+      return { ok: false, reason: "captcha_post_submit", captcha: postCaptcha.types, skipRetry: true };
+    }
+
     const shotPath = path.join(__dirname, "logs", `${target.id}-${Date.now()}.png`);
     await page.screenshot({ path: shotPath, fullPage: false });
-
-    await ctx.close();
-    await browser.close();
 
     return {
       ok: confirmation.status === "success" || confirmation.status === "unknown",
@@ -181,56 +210,124 @@ async function processTarget(target) {
       screenshotPath: shotPath,
     };
   } catch (e) {
-    await ctx.close();
-    await browser.close();
     return { ok: false, reason: "exception", error: String(e?.message || e) };
+  } finally {
+    try { await ctx?.close(); } catch {}
+    try { await browser?.close(); } catch {}
   }
 }
 
+async function processTarget(target) {
+  if (target.status !== "pending") return { skipped: true, reason: `status=${target.status}` };
+
+  // Hard timeout — Playwright hang protection
+  const withTimeout = (p, ms) =>
+    Promise.race([
+      p,
+      new Promise((resolve) => setTimeout(() => resolve({ ok: false, reason: "overall_timeout", timeoutMs: ms }), ms)),
+    ]);
+
+  let attempt = 0;
+  let last;
+  while (attempt <= MAX_RETRY) {
+    attempt++;
+    last = await withTimeout(processTargetOnce(target), OVERALL_TARGET_TIMEOUT_MS);
+    if (last.ok) return { ...last, attempts: attempt };
+    if (last.skipRetry) return { ...last, attempts: attempt };
+    if (attempt <= MAX_RETRY) {
+      console.log(`  retry ${attempt}/${MAX_RETRY} for ${target.id} (reason=${last.reason})`);
+      await new Promise((r) => setTimeout(r, 3000));
+    }
+  }
+  return { ...last, attempts: attempt };
+}
+
 async function run({ limit = 5, targetId = null } = {}) {
-  const data = loadTargets();
-  let queue = data.targets.filter((t) => t.status === "pending");
-  if (targetId) queue = queue.filter((t) => t.id === targetId);
-  queue = queue.sort((a, b) => (a.priority || 99) - (b.priority || 99)).slice(0, limit);
+  // Anti-duplicate: refuse concurrent runs
+  if (RUN_LOCK) {
+    console.log("[run] already in progress — rejecting concurrent call");
+    return { okCount: 0, failCount: 0, attempted: 0, skipped: "already_running" };
+  }
+  RUN_LOCK = true;
 
-  await postSlack({
-    text: `🚀 paranium.com outbound batch starting — ${queue.length} targets`,
-  });
+  try {
+    const data = loadTargets();
+    let queue = data.targets.filter((t) => t.status === "pending");
+    if (targetId) queue = queue.filter((t) => t.id === targetId);
+    queue = queue.sort((a, b) => (a.priority || 99) - (b.priority || 99)).slice(0, limit);
 
-  let okCount = 0;
-  let failCount = 0;
-  for (const target of queue) {
-    console.log(`\n[${new Date().toISOString()}] Processing ${target.id} (${target.name})`);
-    const result = await processTarget(target);
-    appendLog({ targetId: target.id, ...result });
+    if (queue.length === 0) {
+      console.log("[run] no pending targets");
+      return { okCount: 0, failCount: 0, attempted: 0, skipped: "queue_empty" };
+    }
 
-    // Update status in targets.json
-    target.status = result.ok ? "sent" : "failed";
-    target.submitted_at = new Date().toISOString();
-    target.last_result = result;
-    if (result.ok) okCount++;
-    else failCount++;
-
-    // Slack notify
     await postSlack({
-      text: `${result.ok ? "✅" : "❌"} paranium.com → ${target.name} (${result.status || result.reason || "n/a"})`,
-      blocks: buildSubmissionBlock({
-        target,
-        success: result.ok,
-        detail: result.marker || result.reason || result.error || "submitted",
-      }),
+      text: `🚀 paranium.com batch — ${queue.length} target${queue.length > 1 ? "s" : ""}`,
     });
 
-    saveTargets(data);
-    await new Promise((r) => setTimeout(r, RATE_LIMIT_MS));
+    let okCount = 0;
+    let failCount = 0;
+    let captchaCount = 0;
+    let consecutiveFails = 0;
+    let aborted = false;
+
+    for (const target of queue) {
+      console.log(`\n[${new Date().toISOString()}] Processing ${target.id} (${target.name})`);
+      const result = await processTarget(target);
+      appendLog({ targetId: target.id, ...result });
+
+      // Status decision
+      let newStatus;
+      if (result.ok) newStatus = "sent";
+      else if (result.reason === "captcha_detected" || result.reason === "captcha_post_submit") {
+        newStatus = "captcha_blocked";
+        captchaCount++;
+      } else newStatus = "failed";
+
+      target.status = newStatus;
+      target.submitted_at = new Date().toISOString();
+      target.last_result = result;
+      if (result.ok) {
+        okCount++;
+        consecutiveFails = 0;
+      } else {
+        failCount++;
+        consecutiveFails++;
+      }
+
+      // Slack notify per submission
+      await postSlack({
+        text: `${result.ok ? "✅" : result.reason?.startsWith("captcha") ? "🤖" : "❌"} ${target.name} (${result.status || result.reason || "n/a"})`,
+        blocks: buildSubmissionBlock({
+          target,
+          success: result.ok,
+          detail: result.marker || result.reason || result.error || "submitted",
+        }),
+      });
+
+      saveTargets(data);
+
+      // Circuit breaker: 3 consecutive fails → abort + escalate
+      if (consecutiveFails >= 3) {
+        await postSlack({
+          text: `🛑 paranium.com — circuit breaker tripped (${consecutiveFails} consecutive fails). Pausing batch. Check Coolify worker logs / IP throttle.`,
+        });
+        aborted = true;
+        break;
+      }
+
+      await new Promise((r) => setTimeout(r, RATE_LIMIT_MS));
+    }
+
+    await postSlack({
+      text: `📊 paranium.com batch done — ✅${okCount} sent / ❌${failCount} failed / 🤖${captchaCount} captcha${aborted ? " / 🛑 aborted (circuit breaker)" : ""}`,
+    });
+
+    console.log(`\nDone. ${okCount} sent / ${failCount} failed / ${captchaCount} captcha`);
+    return { okCount, failCount, captchaCount, attempted: queue.length, aborted };
+  } finally {
+    RUN_LOCK = false;
   }
-
-  await postSlack({
-    text: `📊 paranium.com outbound batch done — ${okCount} sent / ${failCount} failed / ${queue.length} attempted`,
-  });
-
-  console.log(`\nDone. ${okCount} sent / ${failCount} failed`);
-  return { okCount, failCount, attempted: queue.length };
 }
 
 // CLI / module export
