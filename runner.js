@@ -68,10 +68,11 @@ async function fillAndSubmit(page, target, message) {
       const phoneField = form.querySelector('input[type="tel"], input[name*="phone" i]');
       const companyField = form.querySelector('input[name*="company" i], input[name*="organization" i]');
       const subjectField = form.querySelector('input[name*="subject" i]');
+      // Broad message field detection — many SaaS forms use idiosyncratic field names
+      // (notes, details, calendly_demo_notes__cloned_, additional_information, how_can_we_help, etc.)
       const messageField =
         form.querySelector("textarea") ||
-        form.querySelector('input[name*="message" i]') ||
-        form.querySelector('input[name*="comment" i]');
+        form.querySelector('input[name*="message" i], input[name*="comment" i], input[name*="note" i], input[name*="detail" i], input[name*="inquiry" i], input[name*="addit" i], input[name*="info" i], input[name*="describe" i], input[name*="how_can" i], input[name*="reason" i], input[name*="more" i], input[name*="anything" i], input[name*="tell_us" i], input[name*="project" i]');
 
       const filled = {};
       if (nameField) {
@@ -103,7 +104,9 @@ async function fillAndSubmit(page, target, message) {
         setVal(messageField, message);
         filled.message = "set";
       } else {
-        return { ok: false, reason: "no_message_field", filled };
+        // Structured intake form — no free-text body. Refuse to submit (would pollute their CRM
+        // with off-topic data in name/email-only fields). Signal email_only fallback to caller.
+        return { ok: false, reason: "structured_form_no_freetext", filled, fallback: "email_only" };
       }
 
       // Find submit button
@@ -260,7 +263,13 @@ async function processTargetOnce(target) {
     const page = await ctx.newPage();
 
     await page.goto(target.url, { waitUntil: "domcontentloaded", timeout: PAGE_TIMEOUT_MS });
-    await page.waitForTimeout(2000); // let JS settle (HubSpot/wpcf7/Tilda load forms async)
+    // JS-heavy SPA tolerance: wait up to 7s for form to appear before declaring "no form"
+    try {
+      await page.waitForSelector('form input[type="email"], form input[name*="email" i]', { timeout: 7000 });
+    } catch {
+      // No form-with-email appeared — let URL discovery handle it
+    }
+    await page.waitForTimeout(1500);
 
     // URL Discovery: if no contact form on configured URL, explore alt paths + mailto fallback
     const discovery = await discoverContactPage(page, target.url);
@@ -287,7 +296,14 @@ async function processTargetOnce(target) {
     const message = pickMessage(target);
     const submitResult = await fillAndSubmit(page, target, message);
     if (!submitResult.ok) {
-      // no_form_with_email / no_message_field / no_submit_btn → permanent, skip retry
+      // Structured-intake form → try mailto: fallback before giving up
+      if (submitResult.fallback === "email_only") {
+        const email = await findMailtoOnPage(page);
+        if (email) {
+          return { ok: false, reason: submitResult.reason, fallback: "email_only", email, discoveredVia, skipRetry: true };
+        }
+      }
+      // no_form_with_email / no_submit_btn → permanent, skip retry
       return { ok: false, reason: submitResult.reason, filled: submitResult.filled, discoveredVia, skipRetry: true };
     }
 

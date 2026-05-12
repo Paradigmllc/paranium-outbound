@@ -70,37 +70,36 @@
       "priority": 7,
       "status": "pending",
       "verified_form": true,
-      "note": "Verified — /demo is primary contact path. Root site /contact-us was 404."
+      "note": "HubSpot form with calendly_demo_notes__cloned_ free-text field. New broad selector should pick it up."
     },
     {
       "id": "paraform",
       "name": "Paraform (recruiting marketplace)",
-      "url": "https://www.paraform.com/get-a-demo",
+      "url": "https://www.paraform.com",
       "industry": "Recruiting marketplace SaaS (YC W23)",
       "priority": 8,
       "status": "pending",
-      "verified_form": true,
-      "note": "Verified — /get-a-demo is primary path. Original /contact was 404."
+      "discovered_email": "team@paraform.com",
+      "note": "Structured intake form (no free-text) on /get-a-demo. URL discovery will check root for mailto: + degrade to email_only."
     },
     {
       "id": "parade-ai",
       "name": "Parade (freight broker SaaS)",
-      "url": "https://try.parade.ai/contact-parade",
+      "url": "https://www.parade.ai",
       "industry": "Freight broker capacity management SaaS (SF)",
       "priority": 9,
       "status": "pending",
-      "verified_form": true,
-      "note": "Verified via WebFetch — contact form on subdomain. Email fallback: assistant@parade.ai"
+      "discovered_email": "assistant@parade.ai",
+      "note": "Subdomain try.parade.ai blocked Playwright. Use root + URL discovery + email fallback."
     },
     {
       "id": "parasolapp",
       "name": "Parasol (vacation calendar SaaS)",
-      "url": "https://parasolapp.io/contact",
+      "url": "https://parasolapp.io",
       "industry": "Team vacation/time-off SaaS",
       "priority": 10,
       "status": "pending",
-      "verified_form": true,
-      "note": "Verified — /contact path. Small team likely → fast decision."
+      "note": "JS-heavy SPA — needs longer wait. New 7s waitForSelector should help. URL discovery fallback active."
     },
     {
       "id": "parasol-tech-us",
@@ -117,8 +116,8 @@
       "url": "https://www.paragon-software.com",
       "industry": "Disk management SDK / SaaS",
       "priority": 12,
-      "status": "pending",
-      "note": "URL discovery will explore — original /home/feedback/ was missing form"
+      "status": "failed",
+      "note": "URL discovery explored all 15 alt paths → no form found. Site may have no public contact form. Accept failure."
     },
     {
       "id": "parallel-ai",
